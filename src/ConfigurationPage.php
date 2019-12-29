@@ -108,17 +108,14 @@ class ConfigurationPage
     /**
      * Set values for the inputs.
      */
-    private function getConfigFormValues()
+    private function getConfigFormValues($formKey)
     {
+        $formKey          = (int)$formKey;
         $configForms      = $this->getConfigForms();
         $languages        = Language::getLanguages(false);
         $configFormValues = [];
 
-        // TODO : a finir
-        return [];
-        dd($configForms);
-
-        foreach ($configForms['form']['input'] as $inputConfig) {
+        foreach ($configForms[$formKey]['form']['input'] as $inputConfig) {
 
             if (array_key_exists('lang', $inputConfig)) {
 
@@ -362,7 +359,7 @@ class ConfigurationPage
             '&module_name=' . $this->module->name;
 
         $helper->tpl_vars = [
-            'fields_value' => $this->getConfigFormValues(),
+            'fields_value' => $this->getConfigFormValues($formKey),
             'languages'    => $context->controller->getLanguages(),
             'id_language'  => $context->language->id,
         ];
