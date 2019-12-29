@@ -1,0 +1,14 @@
+{
+  "name": "signalwow/configurationpage",
+  "license": "BSD-3-Clause",
+  "description": "Tool for creating configuration pages of PrestaShop modules",
+  "type": "library",
+  "authors": [
+    {
+      "name": "Jérémie Pasquis",
+      "email": "jeremie@signalwow.fr"
+    }
+  ],
+  "minimum-stability": "stable",
+  "require": {}
+}
