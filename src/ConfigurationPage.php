@@ -34,6 +34,7 @@ use PrestaShop\PrestaShop\Adapter\Entity\HelperForm;
 use PrestaShop\PrestaShop\Adapter\Entity\HelperTreeCategories;
 use PrestaShop\PrestaShop\Adapter\Entity\Language;
 use PrestaShop\PrestaShop\Adapter\Entity\Tools;
+use PrestaShopException;
 
 class ConfigurationPage
 {
@@ -78,7 +79,18 @@ class ConfigurationPage
 
         foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
 
-            foreach ((array)$this->getConfigFormValues($formKey) as $configKey => $configValue) {
+            try {
+
+                $configFormValues = (array)$this->getConfigFormValues($formKey);
+
+            } catch (PrestaShopException $e) {
+
+                $this->module->displayError($e->getMessage());
+
+                return false;
+            }
+
+            foreach ($configFormValues as $configKey => $configValue) {
 
                 if (is_array($configValue)) {
 
@@ -101,6 +113,7 @@ class ConfigurationPage
      * Set values for the inputs.
      * @param int $formKey
      * @return array
+     * @throws PrestaShopException
      */
     private function getConfigFormValues($formKey)
     {
@@ -135,6 +148,7 @@ class ConfigurationPage
 
     /**
      * @return array
+     * @throws PrestaShopException
      */
     private function getConfigForms()
     {
@@ -153,6 +167,7 @@ class ConfigurationPage
     /**
      * @param int $formKey
      * @return array
+     * @throws PrestaShopException
      */
     private function getConfigForm($formKey)
     {
@@ -164,6 +179,7 @@ class ConfigurationPage
     /**
      * @param array $configForm
      * @return array
+     * @throws PrestaShopException
      */
     private function prepareConfigForm(array $configForm)
     {
@@ -191,6 +207,7 @@ class ConfigurationPage
     /**
      * @param array $categoryTreeParams
      * @return array
+     * @throws PrestaShopException
      */
     private function fixMultipleCategoryTrees($categoryTreeParams)
     {
@@ -288,11 +305,23 @@ class ConfigurationPage
             $successMessage = $this->postProcess($this->getConfigFormsValues());
         }
 
-        return $successMessage . $this->renderForms();
+        try {
+
+            $output = $this->renderForms();
+
+        } catch (PrestaShopException $e) {
+
+            $module->displayError($e->getMessage());
+
+            $output = '';
+        }
+
+        return $successMessage . $output;
     }
 
     /**
      * @return string
+     * @throws PrestaShopException
      */
     private function renderForms()
     {
@@ -306,8 +335,6 @@ class ConfigurationPage
         $helper->identifier               = $this->identifier;
         $helper->submit_action            = $this->prefix . $this->module->name . '_form';
         $helper->token                    = Tools::getAdminTokenLite('AdminModules');
-
-        // TODO : Gérer les PrestaShopExceptions
 
         $helper->currentIndex =
             $context->link->getAdminLink('AdminModules', false) .
