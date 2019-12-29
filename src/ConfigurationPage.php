@@ -34,8 +34,6 @@ use PrestaShop\PrestaShop\Adapter\Entity\HelperForm;
 use PrestaShop\PrestaShop\Adapter\Entity\HelperTreeCategories;
 use PrestaShop\PrestaShop\Adapter\Entity\Language;
 use PrestaShop\PrestaShop\Adapter\Entity\Tools;
-use SignalWow\KickStart\forms\DefaultConfigForm;
-use SignalWow\KickStart\forms\DemoConfigForm;
 
 class ConfigurationPage
 {
@@ -48,31 +46,15 @@ class ConfigurationPage
     /** @var string */
     private $prefix = '';
     /** @var string */
-    private $formName;
-    /** @var string */
     private $table = 'module';
     /** @var string */
     private $identifier = 'id_module';
-    /** @var array */
-    private $defaultConfigurations = [];
 
     /**
      * ConfigurationPage constructor.
      */
     private function __construct()
     {
-    }
-
-    /**
-     * @param array $configValues
-     * @return $this
-     */
-    public function addConfigurationValues($configValues)
-    {
-        $configValues                  = (array)$configValues;
-        $this->defaultConfigurations[] = $configValues;
-
-        return $this;
     }
 
     /**
@@ -117,6 +99,8 @@ class ConfigurationPage
 
     /**
      * Set values for the inputs.
+     * @param int $formKey
+     * @return array
      */
     private function getConfigFormValues($formKey)
     {
@@ -154,9 +138,12 @@ class ConfigurationPage
      */
     private function getConfigForms()
     {
+        // TODO : Mettre un formulaire demo si aucun paramétré
+
         $configForms = [];
 
         foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
+
             $configForms[] = $this->getConfigForm((int)$formKey);
         }
 
@@ -169,10 +156,6 @@ class ConfigurationPage
      */
     private function getConfigForm($formKey)
     {
-//        if ($this->configFormDefinitions === null) {
-//            $this->configFormDefinitions = $this->getDefaultConfigForm();
-//        }
-
         $formKey = (int)$formKey;
 
         return $this->prepareConfigForm($this->configFormDefinitions[$formKey]);
@@ -187,13 +170,17 @@ class ConfigurationPage
         foreach ($configForm as $key => $config) {
 
             if (is_array($config)) {
+
                 $configForm[$key] = $this->prepareConfigForm($config);
+
                 if (array_key_exists('type', $config) && $config['type'] === 'categories') {
+
                     $configForm[$key] = $this->fixMultipleCategoryTrees($config);
                 }
             }
 
             if ($key === 'name') {
+
                 $configForm[$key] = $this->prefix . $config;
             }
         }
@@ -205,11 +192,13 @@ class ConfigurationPage
      * @param array $categoryTreeParams
      * @return array
      */
-    private function fixMultipleCategoryTrees(array $categoryTreeParams)
+    private function fixMultipleCategoryTrees($categoryTreeParams)
     {
         $root = Category::getRootCategory();
 
         $tree = new HelperTreeCategories(Tools::strtolower($categoryTreeParams['name']));
+
+        // TODO : traiter les PrstashopExceptions
 
         $tree
             ->setUseCheckBox(false)
@@ -228,6 +217,7 @@ class ConfigurationPage
         ];
 
         if (array_key_exists('desc', $categoryTreeParams)) {
+
             $output['desc'] = $categoryTreeParams['desc'];
         }
 
@@ -240,6 +230,7 @@ class ConfigurationPage
     public static function getInstance()
     {
         if (self::$instance === null) {
+
             self::$instance = new ConfigurationPage();
         }
 
@@ -257,6 +248,7 @@ class ConfigurationPage
         $this->module                  = $module;
 
         foreach ((array)$defaultConfigurationValues as $key => $defaultConfiguration) {
+
             $preparedDefaultConfigurations[$this->prefix . $key] = $defaultConfiguration;
         }
 
@@ -288,34 +280,14 @@ class ConfigurationPage
         $this->module   = $module;
         $successMessage = '';
 
-//        if ($this->formName === null) {
-//            $this->setFormName($this->prefix . $this->module->name);
-//        }
-
         /**
          * If values have been submitted in the form, process.
          */
-//        if (((bool)Tools::isSubmit($this->formName)) === true) {
-//            $successMessage = $this->postProcess($this->getConfigFormValues());
-//        }
-
-//        foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
-//            dd(Tools::getAllValues());
-
         if (((bool)Tools::isSubmit($this->prefix . $this->module->name . '_form')) === true) {
 
             $successMessage = $this->postProcess($this->getConfigFormsValues());
         }
-//        }
 
-//        $output = $this->module->fetch(
-//            $this->module->getLocalPath() . 'views' .
-//            DIRECTORY_SEPARATOR . 'admin' .
-//            DIRECTORY_SEPARATOR . 'templates' .
-//            DIRECTORY_SEPARATOR . $this->prefix . 'configure.tpl'
-//        );
-
-//        return $successMessage . $this->renderForm() . $output;
         return $successMessage . $this->renderForms();
     }
 
@@ -324,21 +296,8 @@ class ConfigurationPage
      */
     private function renderForms()
     {
-        /// TODO ///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//        $output = '';
-//
-//        foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
-//            $output .= $this->renderForm((int)$formKey);
-//        }
-//
-//        return $output;
-
-        /// TODO ///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-        $helper  = new HelperForm();
-        $context = Context::getContext();
-
+        $context                          = Context::getContext();
+        $helper                           = new HelperForm();
         $helper->show_toolbar             = false;
         $helper->table                    = $this->table;
         $helper->module                   = $this->module;
@@ -347,6 +306,8 @@ class ConfigurationPage
         $helper->identifier               = $this->identifier;
         $helper->submit_action            = $this->prefix . $this->module->name . '_form';
         $helper->token                    = Tools::getAdminTokenLite('AdminModules');
+
+        // TODO : Gérer les PrestaShopExceptions
 
         $helper->currentIndex =
             $context->link->getAdminLink('AdminModules', false) .
@@ -374,96 +335,13 @@ class ConfigurationPage
 
             foreach ($configFormDefinition['form']['input'] as $configKey => $configValue) {
 
-                $configFormsValues[$this->prefix . $configValue['name']] = Configuration::get($this->prefix . $configValue['name']);
+                $configFormsValues[$this->prefix . $configValue['name']] = Configuration::get(
+                    $this->prefix . $configValue['name']
+                );
             }
         }
 
         return $configFormsValues;
-    }
-
-    /**
-     * Creating form for the configuration page
-     * @param $formKey
-     * @return string
-     */
-    private function renderForm($formKey)
-    {
-        $formKey = (int)$formKey;
-        $helper  = new HelperForm();
-        $context = Context::getContext();
-
-        $helper->show_toolbar             = false;
-        $helper->table                    = $this->table;
-        $helper->module                   = $this->module;
-        $helper->default_form_language    = $context->language->id;
-        $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
-        $helper->identifier               = $this->identifier;
-        $helper->submit_action            = key($this->configFormDefinitions[$formKey]) . '_' . $formKey;
-        $helper->token                    = Tools::getAdminTokenLite('AdminModules');
-
-        $helper->currentIndex =
-            $context->link->getAdminLink('AdminModules', false) .
-            '&configure=' . $this->module->name .
-            '&tab_module=' . $this->module->tab .
-            '&module_name=' . $this->module->name;
-
-        $helper->tpl_vars = [
-            'fields_value' => $this->getConfigFormValues($formKey),
-            'languages'    => $context->controller->getLanguages(),
-            'id_language'  => $context->language->id,
-        ];
-
-        return $helper->generateForm([$this->getConfigForm($formKey)]);
-    }
-
-    /**
-     * @param array $configFormDefinition
-     * @return $this
-     */
-    public function setConfigFormDefinition($configFormDefinition)
-    {
-        $this->configFormDefinitions = $configFormDefinition;
-        return $this;
-    }
-
-    /**
-     * @param $defaultConfigurations
-     * @return $this
-     */
-    public function setDefaultConfigurationValues($defaultConfigurations)
-    {
-        $this->defaultConfigurations = $defaultConfigurations;
-
-        return $this;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setDemoConfigFormDefinition()
-    {
-        $this->configFormDefinitions = $this->getDemoConfigForm();
-
-        return $this;
-    }
-
-    /**
-     * @return array
-     */
-    private function getDemoConfigForm()
-    {
-        $defaultConfigForm = new DemoConfigForm();
-        return $defaultConfigForm->getDemoConfigForm($this->module);
-    }
-
-    /**
-     * @param string $formName
-     * @return $this
-     */
-    public function setFormName($formName)
-    {
-        $this->formName = $formName;
-        return $this;
     }
 
     /**
@@ -504,15 +382,5 @@ class ConfigurationPage
     {
         $this->table = $table;
         return $this;
-    }
-
-    /**
-     * @return array
-     */
-    private function getDefaultConfigForm()
-    {
-        $defaultConfigForm = new DefaultConfigForm();
-
-        return $defaultConfigForm->getDefaultConfigForm($this->module);
     }
 }
