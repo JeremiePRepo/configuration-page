@@ -11,6 +11,7 @@
   ],
   "minimum-stability": "stable",
   "require": {},
+  "require-dev": {},
   "autoload": {
     "psr-4": {
       "SignalWow\\ConfigurationPage\\": "src/"

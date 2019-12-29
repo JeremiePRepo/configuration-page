@@ -33,7 +33,6 @@ use PrestaShop\PrestaShop\Adapter\Entity\Context;
 use PrestaShop\PrestaShop\Adapter\Entity\HelperForm;
 use PrestaShop\PrestaShop\Adapter\Entity\HelperTreeCategories;
 use PrestaShop\PrestaShop\Adapter\Entity\Language;
-use PrestaShop\PrestaShop\Adapter\Entity\PrestaShopException;
 use PrestaShop\PrestaShop\Adapter\Entity\Tools;
 use SignalWow\KickStart\forms\DefaultConfigForm;
 use SignalWow\KickStart\forms\DemoConfigForm;
@@ -59,11 +58,21 @@ class ConfigurationPage
 
     /**
      * ConfigurationPage constructor.
-     * @param array $configFormDefinition
      */
-    private function __construct($configFormDefinition)
+    private function __construct()
     {
-        $this->configFormDefinitions[] = (array)$configFormDefinition;
+    }
+
+    /**
+     * @param array $configValues
+     * @return $this
+     */
+    public function addConfigurationValues($configValues)
+    {
+        $configValues                  = (array)$configValues;
+        $this->defaultConfigurations[] = $configValues;
+
+        return $this;
     }
 
     /**
@@ -80,26 +89,27 @@ class ConfigurationPage
     /**
      * Remove settings in database
      * @return bool
-     * @throws PrestaShopException
-     * @throws \PrestaShopException
      */
     public function deleteConfigurations()
     {
-        $result           = true;
-        $configFormValues = $this->getConfigFormValues();
+        $result = true;
 
-        foreach ($configFormValues as $key => $value) {
+        foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
 
-            if (is_array($value)) {
+            foreach ((array)$this->getConfigFormValues($formKey) as $configKey => $configValue) {
 
-                foreach ($value as $lang => $param) {
+                if (is_array($configValue)) {
 
-                    $result = $result && Configuration::deleteByName($key . '_' . $lang);
+                    foreach ($configValue as $lang => $param) {
 
-                    continue;
+                        $result = $result && Configuration::deleteByName($configKey . '_' . $lang);
+
+                        continue;
+                    }
                 }
+
+                $result = $result && Configuration::deleteByName($configKey);
             }
-            $result = $result && Configuration::deleteByName($key);
         }
 
         return $result;
@@ -139,6 +149,9 @@ class ConfigurationPage
         return $configFormValues;
     }
 
+    /**
+     * @return array
+     */
     private function getConfigForms()
     {
         $configForms = [];
@@ -166,20 +179,8 @@ class ConfigurationPage
     }
 
     /**
-     * @return array
-     */
-    private function getDefaultConfigForm()
-    {
-        $defaultConfigForm = new DefaultConfigForm();
-
-        return $defaultConfigForm->getDefaultConfigForm($this->module);
-    }
-
-    /**
      * @param array $configForm
      * @return array
-     * @throws PrestaShopException
-     * @throws \PrestaShopException
      */
     private function prepareConfigForm(array $configForm)
     {
@@ -203,7 +204,6 @@ class ConfigurationPage
     /**
      * @param array $categoryTreeParams
      * @return array
-     * @throws \PrestaShopException
      */
     private function fixMultipleCategoryTrees(array $categoryTreeParams)
     {
@@ -235,26 +235,28 @@ class ConfigurationPage
     }
 
     /**
-     * @param array $configFormDefinition
      * @return ConfigurationPage
      */
-    public static function getInstance($configFormDefinition)
+    public static function getInstance()
     {
         if (self::$instance === null) {
-            self::$instance = new ConfigurationPage((array)$configFormDefinition);
+            self::$instance = new ConfigurationPage();
         }
 
         return self::$instance;
     }
 
     /**
+     * @param array $defaultConfigurationValues
+     * @param Module $module
      * @return string
      */
-    public function initDefaultConfigurationValues()
+    public function initDefaultConfigurationValues($defaultConfigurationValues, Module $module)
     {
         $preparedDefaultConfigurations = [];
+        $this->module                  = $module;
 
-        foreach ($this->defaultConfigurations as $key => $defaultConfiguration) {
+        foreach ((array)$defaultConfigurationValues as $key => $defaultConfiguration) {
             $preparedDefaultConfigurations[$this->prefix . $key] = $defaultConfiguration;
         }
 
@@ -263,14 +265,14 @@ class ConfigurationPage
 
     /**
      * Save form data.
-     * @param $formValues
+     * @param array $formValues
      * @return string
      */
     private function postProcess($formValues)
     {
-        foreach ($formValues as $key => $value) {
+        foreach ((array)$formValues as $key => $value) {
 
-            Configuration::updateValue($key, Tools::getValue($key, $value));
+            Configuration::updateValue($key, Tools::getValue($key, (string)$value));
         }
 
         return $this->module->displayConfirmation($this->module->l('Settings updated'));
@@ -297,6 +299,15 @@ class ConfigurationPage
 //            $successMessage = $this->postProcess($this->getConfigFormValues());
 //        }
 
+//        foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
+//            dd(Tools::getAllValues());
+
+        if (((bool)Tools::isSubmit($this->prefix . $this->module->name . '_form')) === true) {
+
+            $successMessage = $this->postProcess($this->getConfigFormsValues());
+        }
+//        }
+
 //        $output = $this->module->fetch(
 //            $this->module->getLocalPath() . 'views' .
 //            DIRECTORY_SEPARATOR . 'admin' .
@@ -309,27 +320,65 @@ class ConfigurationPage
     }
 
     /**
-     * @param string $formName
-     * @return $this
+     * @return string
      */
-    public function setFormName($formName)
-    {
-        $this->formName = $formName;
-        return $this;
-    }
-
     private function renderForms()
     {
         /// TODO ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        $output = '';
+//        $output = '';
+//
+//        foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
+//            $output .= $this->renderForm((int)$formKey);
+//        }
+//
+//        return $output;
+
+        /// TODO ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        $helper  = new HelperForm();
+        $context = Context::getContext();
+
+        $helper->show_toolbar             = false;
+        $helper->table                    = $this->table;
+        $helper->module                   = $this->module;
+        $helper->default_form_language    = $context->language->id;
+        $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
+        $helper->identifier               = $this->identifier;
+        $helper->submit_action            = $this->prefix . $this->module->name . '_form';
+        $helper->token                    = Tools::getAdminTokenLite('AdminModules');
+
+        $helper->currentIndex =
+            $context->link->getAdminLink('AdminModules', false) .
+            '&configure=' . $this->module->name .
+            '&tab_module=' . $this->module->tab .
+            '&module_name=' . $this->module->name;
+
+        $helper->tpl_vars = [
+            'fields_value' => $this->getConfigFormsValues(),
+            'languages'    => $context->controller->getLanguages(),
+            'id_language'  => $context->language->id,
+        ];
+
+        return $helper->generateForm($this->getConfigForms());
+    }
+
+    /**
+     * @return array
+     */
+    private function getConfigFormsValues()
+    {
+        $configFormsValues = [];
 
         foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
-            $output .= $this->renderForm((int)$formKey);
+
+            foreach ($configFormDefinition['form']['input'] as $configKey => $configValue) {
+
+                $configFormsValues[$this->prefix . $configValue['name']] = Configuration::get($this->prefix . $configValue['name']);
+            }
         }
 
-
-        return $output;
+        return $configFormsValues;
     }
 
     /**
@@ -408,6 +457,16 @@ class ConfigurationPage
     }
 
     /**
+     * @param string $formName
+     * @return $this
+     */
+    public function setFormName($formName)
+    {
+        $this->formName = $formName;
+        return $this;
+    }
+
+    /**
      * @param string $identifier
      * @return $this
      */
@@ -445,5 +504,15 @@ class ConfigurationPage
     {
         $this->table = $table;
         return $this;
+    }
+
+    /**
+     * @return array
+     */
+    private function getDefaultConfigForm()
+    {
+        $defaultConfigForm = new DefaultConfigForm();
+
+        return $defaultConfigForm->getDefaultConfigForm($this->module);
     }
 }
