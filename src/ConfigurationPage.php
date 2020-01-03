@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright (c) 2019 Signal Wow
+ * Copyright (c) 2020 Signal Wow
  * ███████╗██╗ ██████╗ ███╗   ██╗ █████╗ ██╗         ██╗    ██╗ ██████╗ ██╗    ██╗
  * ██╔════╝██║██╔════╝ ████╗  ██║██╔══██╗██║         ██║    ██║██╔═══██╗██║    ██║
  * ███████╗██║██║  ███╗██╔██╗ ██║███████║██║         ██║ █╗ ██║██║   ██║██║ █╗ ██║
@@ -50,6 +50,10 @@ class ConfigurationPage
     private $table = 'module';
     /** @var string */
     private $identifier = 'id_module';
+    /** @var string */
+    private $formName = 'form';
+    /** @var array */
+    private $passwordTypes = [];
 
     /**
      * ConfigurationPage constructor.
@@ -281,10 +285,33 @@ class ConfigurationPage
     {
         foreach ((array)$formValues as $key => $value) {
 
-            Configuration::updateValue($key, Tools::getValue($key, (string)$value));
+            $value = Tools::getValue($key, (string)$value);
+
+            if (in_array($key, $this->passwordTypes, true)) {
+                $value = $this->getPasswordHash($value, $key);
+            }
+
+            Configuration::updateValue($key, $value);
         }
 
         return $this->module->displayConfirmation($this->module->l('Settings updated'));
+    }
+
+    /**
+     * @param string $password
+     * @param string $configKey
+     * @return string
+     */
+    private function getPasswordHash($password, $configKey)
+    {
+        $password     = (string)$password;
+        $passwordHash = Configuration::get((string)$configKey);
+
+        if ($password !== '') {
+            $passwordHash = Tools::hash($password);
+        }
+
+        return $passwordHash;
     }
 
     /**
@@ -296,11 +323,12 @@ class ConfigurationPage
     {
         $this->module   = $module;
         $successMessage = '';
+        $this->formName = $this->prefix . $this->module->name . '_form';
 
         /**
          * If values have been submitted in the form, process.
          */
-        if (((bool)Tools::isSubmit($this->prefix . $this->module->name . '_form')) === true) {
+        if (((bool)Tools::isSubmit($this->formName)) === true) {
 
             $successMessage = $this->postProcess($this->getConfigFormsValues());
         }
@@ -320,6 +348,31 @@ class ConfigurationPage
     }
 
     /**
+     * @return array
+     */
+    private function getConfigFormsValues()
+    {
+        $configFormsValues   = [];
+        $this->passwordTypes = [];
+
+        foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
+
+            foreach ($configFormDefinition['form']['input'] as $configKey => $configValue) {
+
+                if ($configValue['type'] === 'password') {
+                    $this->passwordTypes[] = $this->prefix . $configValue['name'];
+                }
+
+                $configFormsValues[$this->prefix . $configValue['name']] = Configuration::get(
+                    $this->prefix . $configValue['name']
+                );
+            }
+        }
+
+        return $configFormsValues;
+    }
+
+    /**
      * @return string
      * @throws PrestaShopException
      */
@@ -333,7 +386,7 @@ class ConfigurationPage
         $helper->default_form_language    = $context->language->id;
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
         $helper->identifier               = $this->identifier;
-        $helper->submit_action            = $this->prefix . $this->module->name . '_form';
+        $helper->submit_action            = $this->formName;
         $helper->token                    = Tools::getAdminTokenLite('AdminModules');
 
         $helper->currentIndex =
@@ -349,26 +402,6 @@ class ConfigurationPage
         ];
 
         return $helper->generateForm($this->getConfigForms());
-    }
-
-    /**
-     * @return array
-     */
-    private function getConfigFormsValues()
-    {
-        $configFormsValues = [];
-
-        foreach ($this->configFormDefinitions as $formKey => $configFormDefinition) {
-
-            foreach ($configFormDefinition['form']['input'] as $configKey => $configValue) {
-
-                $configFormsValues[$this->prefix . $configValue['name']] = Configuration::get(
-                    $this->prefix . $configValue['name']
-                );
-            }
-        }
-
-        return $configFormsValues;
     }
 
     /**
