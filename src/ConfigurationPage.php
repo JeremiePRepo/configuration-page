@@ -63,6 +63,19 @@ class ConfigurationPage
     }
 
     /**
+     * @return ConfigurationPage
+     */
+    public static function getInstance()
+    {
+        if (self::$instance === null) {
+
+            self::$instance = new ConfigurationPage();
+        }
+
+        return self::$instance;
+    }
+
+    /**
      * @param array $configFormDefinition
      * @return ConfigurationPage
      */
@@ -246,19 +259,6 @@ class ConfigurationPage
     }
 
     /**
-     * @return ConfigurationPage
-     */
-    public static function getInstance()
-    {
-        if (self::$instance === null) {
-
-            self::$instance = new ConfigurationPage();
-        }
-
-        return self::$instance;
-    }
-
-    /**
      * @param array $defaultConfigurationValues
      * @param Module $module
      * @return string
@@ -285,6 +285,12 @@ class ConfigurationPage
     {
         foreach ((array)$formValues as $key => $value) {
 
+            // Seuls les champs multilingues sont en array ?
+            if (is_array($value)) {
+                $this->updateMultilangConfig($key, $value);
+                continue;
+            }
+
             $value = Tools::getValue($key, (string)$value);
 
             if (in_array($key, $this->passwordTypes, true)) {
@@ -295,6 +301,22 @@ class ConfigurationPage
         }
 
         return $this->module->displayConfirmation($this->module->l('Settings updated'));
+    }
+
+    /**
+     * @param string $key
+     * @param array $values
+     */
+    private function updateMultilangConfig($key, $values)
+    {
+        $key    = (string)$key;
+        $values = (array)$values;
+
+        foreach ($values as $idLang => $value) {
+
+            $value = Tools::getValue($key . '_' . $idLang, $value);
+            Configuration::updateValue($key . '_' . $idLang, $value, true);
+        }
     }
 
     /**
@@ -363,6 +385,11 @@ class ConfigurationPage
                     $this->passwordTypes[] = $this->prefix . $configValue['name'];
                 }
 
+                if (isset($configValue['lang'])) {
+                    $configFormsValues[$this->prefix . $configValue['name']] = $this->getMultilangValues($configValue);
+                    continue;
+                }
+
                 $configFormsValues[$this->prefix . $configValue['name']] = Configuration::get(
                     $this->prefix . $configValue['name']
                 );
@@ -370,6 +397,25 @@ class ConfigurationPage
         }
 
         return $configFormsValues;
+    }
+
+    /**
+     * @param array $configValue
+     * @return array
+     */
+    private function getMultilangValues($configValue)
+    {
+        $multilangValues = [];
+        $configValue     = (array)$configValue;
+
+        foreach (Language::getLanguages(false) as $language) {
+
+            $multilangValues[$language['id_lang']] = Configuration::get(
+                $this->prefix . $configValue['name'] . '_' . $language['id_lang']
+            );
+        }
+
+        return $multilangValues;
     }
 
     /**
