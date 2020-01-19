@@ -291,7 +291,7 @@ class ConfigurationPage
                 $value = $this->getPasswordHash($value, $key);
             }
 
-            Configuration::updateValue($key, $value);
+            Configuration::updateValue($key, $value, true);
         }
 
         return $this->module->displayConfirmation($this->module->l('Settings updated'));
