@@ -262,8 +262,19 @@ class ConfigurationPage
      * @param array $defaultConfigurationValues
      * @param Module $module
      * @return string
+     * @deprecated Use initDefaults instead
      */
     public function initDefaultConfigurationValues($defaultConfigurationValues, Module $module)
+    {
+        return $this->initDefaults($defaultConfigurationValues, $module);
+    }
+
+    /**
+     * @param array $defaultConfigurationValues
+     * @param Module $module
+     * @return string
+     */
+    public function initDefaults($defaultConfigurationValues, Module $module)
     {
         $preparedDefaultConfigurations = [];
         $this->module                  = $module;
