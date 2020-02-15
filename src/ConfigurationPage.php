@@ -370,6 +370,39 @@ class ConfigurationPage
     }
 
     /**
+     * Load the configuration form
+     * @param Module $module
+     * @return string
+     */
+    public function processAndRender(Module $module)
+    {
+        $this->module   = $module;
+        $successMessage = '';
+        $this->formName = $this->prefix . $this->module->name . '_form';
+
+        /**
+         * If values have been submitted in the form, process.
+         */
+        if (((bool)Tools::isSubmit($this->formName)) === true) {
+
+            $successMessage = $this->postProcess($this->getConfigFormsValues());
+        }
+
+        try {
+
+            $output = $this->renderForms();
+
+        } catch (PrestaShopException $e) {
+
+            $module->displayError($e->getMessage());
+
+            $output = '';
+        }
+
+        return $successMessage . $output;
+    }
+
+    /**
      * @return array
      */
     private function getConfigFormsValues()
@@ -461,6 +494,16 @@ class ConfigurationPage
     }
 
     /**
+     * @param string $identifier
+     * @return $this
+     */
+    public function setOptionIdentifier($identifier)
+    {
+        $this->identifier = $identifier;
+        return $this;
+    }
+
+    /**
      * @param Module $module
      * @return $this
      */
@@ -481,10 +524,30 @@ class ConfigurationPage
     }
 
     /**
+     * @param string $prefix
+     * @return $this
+     */
+    public function setOptionPrefix($prefix)
+    {
+        $this->prefix = (string)$prefix;
+        return $this;
+    }
+
+    /**
      * @param string $table
      * @return $this
      */
     public function setTable($table)
+    {
+        $this->table = $table;
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @return $this
+     */
+    public function setOptionTable($table)
     {
         $this->table = $table;
         return $this;
