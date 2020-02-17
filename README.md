@@ -1,11 +1,10 @@
 # ConfigurationPage
 
 ## Installation
-
- - placer la classe ConfigurationPage dans le dossier src/
- - Autoloader la classe avec composer
  
 Dans le module :
+
+ `composer require signalwow/configurationpage`
  
 ```
 <?php

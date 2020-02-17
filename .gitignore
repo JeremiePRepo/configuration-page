@@ -6,6 +6,7 @@
 config*.xml
 index.php
 testmodule.php
+testmodule2.php
 
 # Created by .ignore support plugin (hsz.mobi)
 ### JetBrains template
